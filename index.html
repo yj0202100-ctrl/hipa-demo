@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIPA — Domain-Specific Design Assistant — Public Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #09090f;
+    --bg2:       #0f0f18;
+    --bg3:       #14141f;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.12);
+    --text:      #e8e8f0;
+    --text-mid:  #9090a8;
+    --text-dim:  #4a4a62;
+    --accent1:   #4f7cff;   /* Stage 1 — information-provision type */
+    --accent2:   #4f7cff;   /* Stage 2 — judgment-support type */
+    --accent-err:#ff5a5a;
+    --glow1:     rgba(79,124,255,0.15);
+    --glow2:     rgba(79,124,255,0.15);
+    --sidebar-w: 240px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── LAYOUT ── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .wordmark {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .sidebar-logo .wordmark span { color: var(--accent1); }
+  .sidebar-logo .tagline {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.06em;
+  }
+
+  .sidebar-section {
+    padding: 16px 20px 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .stage-card {
+    margin: 0 12px 6px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: default;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .stage-card:hover { border-color: var(--border2); background: var(--bg3); }
+  .stage-card .s-badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+  }
+  .stage-card.s1 .s-badge { background: rgba(79,124,255,0.15); color: var(--accent1); }
+  .stage-card.s2 .s-badge { background: rgba(0,201,160,0.15); color: var(--accent2); }
+  .stage-card .s-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .stage-card .s-desc {
+    font-size: 11px;
+    color: var(--text-mid);
+    line-height: 1.5;
+  }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .sidebar-bottom .model-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .model-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    box-shadow: 0 0 6px var(--accent2);
+  }
+
+  /* ── MAIN ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* header */
+  .topbar {
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg);
+  }
+  .topbar .tb-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .topbar .tb-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-left: auto;
+    letter-spacing: 0.05em;
+  }
+
+  /* chat area */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    scroll-behavior: smooth;
+  }
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-track { background: transparent; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* empty state */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    text-align: center;
+    gap: 16px;
+    animation: fadeIn 0.6s ease;
+  }
+  .empty-icon {
+    width: 56px; height: 56px;
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    background: var(--bg3);
+    box-shadow: 0 0 40px rgba(79,124,255,0.08);
+  }
+  .empty-state h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .empty-state p {
+    font-size: 13px;
+    color: var(--text-mid);
+    max-width: 380px;
+    line-height: 1.8;
+  }
+  .suggestion-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .chip {
+    padding: 8px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--bg3);
+  }
+  .chip:hover {
+    border-color: var(--accent1);
+    color: var(--accent1);
+    background: rgba(79,124,255,0.06);
+  }
+
+  /* message row */
+  .msg-row {
+    padding: 20px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    animation: slideUp 0.25s ease;
+    position: relative;
+  }
+  .msg-row + .msg-row { border-top: 1px solid var(--border); }
+
+  /* user message */
+  .msg-user {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+  }
+  .msg-user-bubble {
+    max-width: 68%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 16px 16px 4px 16px;
+    padding: 12px 16px;
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  /* AI message */
+  .msg-ai { display: flex; flex-direction: column; gap: 12px; }
+
+  .stage-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    width: fit-content;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .stage-tag.s1 { background: rgba(79,124,255,0.12); color: var(--accent1); border: 1px solid rgba(79,124,255,0.2); }
+  .stage-tag.s2 { background: rgba(0,201,160,0.12); color: var(--accent2); border: 1px solid rgba(0,201,160,0.2); }
+  .stage-tag.fallback { background: rgba(255,90,90,0.1); color: var(--accent-err); border: 1px solid rgba(255,90,90,0.2); }
+  .stage-tag .dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.8;
+  }
+
+  /* sections */
+  .ai-sections { display: flex; flex-direction: column; gap: 0; }
+
+  .section-block {
+    border-left: 2px solid var(--border);
+    padding: 14px 18px;
+    transition: border-color 0.2s;
+  }
+  .section-block:hover { border-left-color: var(--border2); }
+  .section-block.s1-section { border-left-color: rgba(79,124,255,0.3); }
+  .section-block.s2-section { border-left-color: rgba(0,201,160,0.3); }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .s1-section .section-label { color: var(--accent1); }
+  .s2-section .section-label { color: var(--accent2); }
+
+  .section-body {
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+  .section-body strong { color: #fff; font-weight: 600; }
+
+  /* plain text fallback */
+  .plain-text {
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.8;
+    white-space: pre-wrap;
+    padding: 4px 0;
+  }
+
+  /* exec summary */
+  .exec-summary {
+    margin-top: 12px;
+    padding: 14px 18px;
+    background: rgba(79,124,255,0.06);
+    border: 1px solid rgba(79,124,255,0.2);
+    border-radius: 10px;
+  }
+  .exec-summary-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--accent2);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .exec-summary-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.8;
+    font-style: italic;
+  }
+
+  /* loading */
+  .loading-dots {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 0;
+  }
+  .loading-dots span {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  /* input area */
+  .input-area {
+    padding: 16px 28px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .input-wrap {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    padding: 12px 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-wrap:focus-within {
+    border-color: rgba(79,124,255,0.4);
+    box-shadow: 0 0 0 3px rgba(79,124,255,0.08);
+  }
+  #userInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.6;
+    resize: none;
+    max-height: 140px;
+    min-height: 22px;
+    overflow-y: auto;
+  }
+  #userInput::placeholder { color: var(--text-dim); }
+  #userInput::-webkit-scrollbar { display: none; }
+
+  .send-btn {
+    width: 32px; height: 32px;
+    min-width: 32px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent1);
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { background: #6b93ff; }
+  .send-btn:active { transform: scale(0.94); }
+  .send-btn:disabled { background: var(--border2); cursor: not-allowed; }
+  .send-btn svg { width: 14px; height: 14px; }
+
+  .input-hint {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 8px;
+    letter-spacing: 0.04em;
+  }
+
+  /* download button */
+  .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 10px 28px 0;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--accent1);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+  .dl-btn:hover {
+    background: rgba(79,124,255,0.08);
+    border-color: var(--accent1);
+  }
+  .dl-btn svg { width: 13px; height: 13px; }
+
+  /* animations */
+  @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse   { 0%, 60%, 100% { opacity: 0.25; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1); } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="wordmark">HIP<span>A</span></div>
+      <div class="tagline">Domain-Specific Design Assistant</div>
+    </div>
+
+    <div class="sidebar-section">Response Modules</div>
+
+    <div class="stage-card s1">
+      <div class="s-badge">Stage 1</div>
+      <div class="s-title">Information Provision</div>
+      <div class="s-desc">Fact-checking · evidence retrieval<br>HIP: Perception + Working Memory</div>
+    </div>
+
+    <div class="stage-card s2">
+      <div class="s-badge">Stage 2</div>
+      <div class="s-title">Judgment Support</div>
+      <div class="s-desc">Judgment · decision support<br>HIP: Decision Making + Response Exec.</div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="model-tag">gpt-4o · Make.com Webhook</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="tb-title">HIPA Chat</div>
+      <div class="tb-sub">Webhook: eu1.make.com</div>
+    </div>
+
+    <div class="chat-area" id="chatArea">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">✦</div>
+        <h2>Ask me anything</h2>
+        <p>An AI assistant grounded in UI/UX domain expertise.<br>It answers in the response structure best suited to your question type.</p>
+        <div class="suggestion-chips">
+          <div class="chip" onclick="fillInput('What is Fitts\'s Law?')">What is Fitts's Law?</div>
+          <div class="chip" onclick="fillInput('What are the WCAG 2.1 contrast ratio requirements?')">WCAG 2.1 contrast requirements</div>
+          <div class="chip" onclick="fillInput('Should I use a modal or a drawer?')">Modal vs. drawer</div>
+          <div class="chip" onclick="fillInput('Can you review whether this design decision is sound?')">Review a design decision</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea id="userInput" rows="1" placeholder="Type your UI/UX question…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 13V3M3 8l5-5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">Enter to send · Shift+Enter for new line</div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+// ── Configuration ──────────────────────────────────────────────────
+// Public demo: point this at the separate public Make.com scenario
+// (own OpenAI API key with a monthly budget cap), not the scenario
+// used for the measurements reported in the paper.
+const WEBHOOK_URL = 'https://hook.eu1.make.com/5x3uxc69r37q81kpua3xhg4hiym3dqow';
+
+const STAGE1_SECTIONS = ['답변', '핵심 포인트', '참고 기준', 'Answer', 'Key Points', 'Reference'];
+const STAGE2_SECTIONS = ['해석', '기준', '분석', '제안', 'Executive Summary',
+                          'Question Interpretation', 'Decision Criteria', 'Analysis',
+                          'Recommendation', 'Evidence', 'Final Suggestion'];
+const ALL_SECTIONS = [...STAGE2_SECTIONS, ...STAGE1_SECTIONS];
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function fillInput(text) {
+  const el = document.getElementById('userInput');
+  el.value = text; el.focus(); autoResize(el);
+}
+function scrollToBottom() {
+  const area = document.getElementById('chatArea');
+  area.scrollTop = area.scrollHeight;
+}
+
+function detectStage(stageStr) {
+  if (!stageStr) return 'unknown';
+  const s = stageStr.toLowerCase().trim();
+  if (s === 's1' || s.includes('1단계') || s.includes('information')) return 's1';
+  if (s === 's2' || s.includes('2단계') || s.includes('decision'))    return 's2';
+  return 'fallback';
+}
+
+// ── Strip trailing JSON fragments
+// Handles cases where Make.com appends ","stage":"s2"} to the end of the answer
+// Pattern: remove leftover JSON remnants at the end of the response text
+function stripJsonTail(text) {
+  // Exact pattern: a trailing ","stage":"s1 or s2"} or ","stage":"..."}
+  // Search backward to find where the JSON fragment begins
+  const patterns = [
+    /",\s*"stage"\s*:\s*"s[12]"\s*\}?\s*$/,
+    /",\s*"stage"\s*:\s*"[^"]*"\s*,\s*"stage_en"\s*:\s*"[^"]*"\s*\}?\s*$/,
+    /",\s*"stage_en"\s*:\s*"[^"]*"\s*\}?\s*$/,
+  ];
+  let result = text;
+  for (const p of patterns) {
+    result = result.replace(p, '');
+  }
+  // Clean up any stray characters left at the end
+  result = result.replace(/[",\s\}]+$/, function(m) {
+    // If a period or text remains, only trim what follows it
+    return '';
+  });
+  // If the sentence ends in a quote/brace rather than a period or word character, strip it
+  result = result.replace(/([가-힣a-zA-Z0-9])[",\}\s]+$/, '$1');
+  return result.trim();
+}
+
+function parseSections(text) {
+  const pattern = new RegExp(
+    '\\[(' + ALL_SECTIONS.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\]',
+    'gi'
+  );
+  const matches = [];
+  let m;
+  while ((m = pattern.exec(text)) !== null) {
+    matches.push({ label: m[1], index: m.index, end: m.index + m[0].length });
+  }
+  if (matches.length === 0) return null;
+  return matches.map((match, i) => ({
+    label: match.label,
+    body: text.slice(match.end, i + 1 < matches.length ? matches[i + 1].index : text.length).trim()
+  }));
+}
+
+function buildSectionsHTML(sections, stageClass) {
+  const execIdx = sections.findIndex(s =>
+    s.label.toLowerCase().includes('executive') || s.label === 'Executive Summary'
+  );
+  let html = '<div class="ai-sections">';
+  sections.forEach(function(sec, i) {
+    if (i === execIdx) return;
+    const cls = stageClass === 's1' ? 's1-section' : 's2-section';
+    html += '<div class="section-block ' + cls + '">';
+    html += '<div class="section-label">' + sec.label + '</div>';
+    html += '<div class="section-body">' + mdBold(sec.body) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  if (execIdx !== -1) {
+    html += '<div class="exec-summary">';
+    html += '<div class="exec-summary-label">Executive Summary</div>';
+    html += '<div class="exec-summary-text">' + mdBold(sections[execIdx].body) + '</div>';
+    html += '</div>';
+  }
+  return html;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Convert markdown bold (**text**) to <strong> after HTML escaping.
+// Applied to section bodies only, so raw asterisks from the model never
+// appear in the chat view.
+function mdBold(str) {
+  return escapeHtml(str).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+function appendUserMsg(text) {
+  const area = document.getElementById('chatArea');
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.remove();
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  row.innerHTML = '<div class="msg-user"><div class="msg-user-bubble">' + escapeHtml(text) + '</div></div>';
+  area.appendChild(row);
+  scrollToBottom();
+  return row;
+}
+
+function appendLoading(row) {
+  const ai = document.createElement('div');
+  ai.className = 'msg-ai';
+  ai.id = 'loadingBlock';
+  ai.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  row.appendChild(ai);
+  scrollToBottom();
+}
+
+function renderAIResponse(row, answer, stageStr) {
+  const loadingBlock = document.getElementById('loadingBlock');
+  if (loadingBlock) loadingBlock.remove();
+
+  const stage = detectStage(stageStr);
+  const stageLabels = {
+    s1: 'Stage 1 \u2014 Information Provision',
+    s2: 'Stage 2 \u2014 Judgment Support',
+    fallback: 'Fallback',
+    unknown: 'HIPA'
+  };
+
+  const sections = parseSections(answer);
+  let contentHTML;
+  if (sections && sections.length > 0) {
+    contentHTML = buildSectionsHTML(sections, stage);
+  } else {
+    contentHTML = '<div class="plain-text">' + mdBold(answer) + '</div>';
+  }
+
+  const ai = document.createElement('div');
+  ai.className = 'msg-ai';
+  ai.innerHTML =
+    '<div class="stage-tag ' + stage + '"><span class="dot"></span>' +
+    (stageLabels[stage] || stageStr) + '</div>' +
+    contentHTML;
+  row.appendChild(ai);
+
+  // Download button shown for Stage 2 responses
+  if (stage === 's2') {
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'dl-btn';
+    dlBtn.innerHTML =
+      '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M8 2v8M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg> Download Executive Summary';
+    const answerCopy = answer;
+    dlBtn.onclick = function() { downloadSummary(answerCopy); };
+    row.appendChild(dlBtn);
+  }
+
+  scrollToBottom();
+}
+
+function renderError(row, msg) {
+  const loadingBlock = document.getElementById('loadingBlock');
+  if (loadingBlock) loadingBlock.remove();
+  const ai = document.createElement('div');
+  ai.className = 'msg-ai';
+  ai.innerHTML =
+    '<div class="stage-tag fallback"><span class="dot"></span>Error</div>' +
+    '<div class="plain-text" style="color:var(--accent-err)">' + escapeHtml(msg) + '</div>';
+  row.appendChild(ai);
+  scrollToBottom();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const btn   = document.getElementById('sendBtn');
+  const question = input.value.trim();
+  if (!question) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  btn.disabled = true;
+
+  const row = appendUserMsg(question);
+  appendLoading(row);
+
+  try {
+    const res = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+
+    const rawText = await res.text();
+    let answer = '', stageStr = '';
+
+    try {
+      const data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim());
+      answer   = data.answer   || data.response || data.result || JSON.stringify(data);
+      stageStr = data.stage    || data.module   || '';
+      // Strip trailing JSON fragment
+      answer = stripJsonTail(answer);
+    } catch (_) {
+      if (rawText && rawText !== 'Accepted') {
+        answer = stripJsonTail(rawText);
+        // If rawText itself is a JSON fragment, try to extract the stage
+        const sm = rawText.match(/"stage"\s*:\s*"([^"]+)"/);
+        if (sm) stageStr = sm[1];
+      } else {
+        throw new Error('Make.com has not returned a response yet. Please check that the scenario is turned ON.');
+      }
+    }
+
+    renderAIResponse(row, answer, stageStr);
+
+  } catch (err) {
+    renderError(row, err.message || 'An unknown error occurred.');
+  } finally {
+    btn.disabled = false;
+    input.focus();
+  }
+}
+
+function downloadSummary(answer) {
+  const sections = parseSections(answer) || [];
+  const now = new Date();
+  const pad = function(n) { return String(n).padStart(2, '0'); };
+  const dateStr = now.getFullYear() + '.' + pad(now.getMonth()+1) + '.' + pad(now.getDate());
+  const timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+  const LINE  = '\u2550'.repeat(42);
+  const LINE2 = '\u2500'.repeat(42);
+  const lines = [
+    LINE,
+    '  HIPA \u2014 Expert Consultation Summary',
+    '  Stage 2 \u2014 Judgment Support',
+    '  Generated: ' + dateStr + ' ' + timeStr,
+    LINE,
+    ''
+  ];
+
+  if (sections.length > 0) {
+    sections.forEach(function(sec) {
+      lines.push('\u258c ' + sec.label.toUpperCase());
+      lines.push(sec.body);
+      lines.push('');
+      lines.push(LINE2);
+      lines.push('');
+    });
+  } else {
+    lines.push(answer);
+  }
+
+  lines.push('');
+  lines.push(LINE);
+  lines.push('  Generated by HIPA \u2014 Domain-Specific Design Assistant');
+  lines.push('  Powered by GPT-4o via Make.com Webhook');
+  lines.push(LINE);
+
+  const txt  = lines.join('\n');
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'HIPA_Summary_' +
+    now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) +
+    '_' + pad(now.getHours()) + pad(now.getMinutes()) + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
